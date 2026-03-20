@@ -56,7 +56,7 @@ def translate_question_data(question_data, target_language):
         raise ValueError("GEMINI_API_KEY is not set.")
 
     client = genai.Client(api_key=api_key)
-    model_id = "gemini-1.5-flash-latest"
+    model_id = "gemini-2.5-flash"
     
     prompt = f"""
     Translate the following question and options into {target_language}.
