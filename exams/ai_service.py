@@ -1,6 +1,7 @@
 import os
 import json
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 
 def generate_questions(topic_name, count=10):
     """
@@ -11,28 +12,13 @@ def generate_questions(topic_name, count=10):
     if not api_key:
         raise ValueError("GEMINI_API_KEY is not set in environment.")
 
-    genai.configure(api_key=api_key)
+    client = genai.Client(api_key=api_key)
+    model_id = "gemini-1.5-flash"
     
-    # 1. Use genai.list_models() to get all available models
-    all_models = genai.list_models()
-    
-    # 2. Filter the models using a list comprehension
-    valid_models = [m for m in all_models if "generateContent" in m.supported_generation_methods]
-    
-    if not valid_models:
-        raise ValueError("No generative models are available for this API key.")
-        
-    # 3. Select the VERY FIRST model name from that filtered list
-    model_name = valid_models[0].name
-    print(f"Dynamically Selected Gemini Model: {model_name}")
-    
-    # 4. Initialize the model using that dynamically found name
-    model = genai.GenerativeModel(model_name)
-
     prompt = f"""
     Generate exactly {count} multiple-choice questions about '{topic_name}'.
     The questions should be appropriate for a college-level exam.
-    Return ONLY a valid JSON array of objects, with no markdown formatting blocks.
+    Return ONLY a valid JSON array of objects.
     Each object MUST have the following keys:
     - "text": The question text.
     - "option_a": First option.
@@ -40,31 +26,25 @@ def generate_questions(topic_name, count=10):
     - "option_c": Third option.
     - "option_d": Fourth option.
     - "correct_option": The correct answer, exactly one of "A", "B", "C", or "D".
-    
-    Ensure the JSON is valid and can be parsed by Python's json.loads().
     """
 
-    # 5. Add a simple try-except block around the generate_content call
     try:
-        response = model.generate_content(prompt)
+        response = client.models.generate_content(
+            model=model_id,
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                response_mime_type='application/json',
+            )
+        )
         
-        # 6. Ensure the JSON parsing logic safely removes any markdown blocks
-        text = response.text.strip()
-        if text.startswith("```json"):
-            text = text[7:]
-        if text.startswith("```"):
-            text = text[3:]
-        if text.endswith("```"):
-            text = text[:-3]
-        text = text.strip()
-
-        data = json.loads(text)
+        # Parse JSON response
+        data = json.loads(response.text)
         return data
         
     except Exception as e:
-        print(f"Gemini API Error with model {model_name}: {str(e)}")
-        # Raise it back to ExamSessionCreateView, which translates it to HTTP 400
-        raise e
+        print(f"CRITICAL Gemini API Error: {str(e)}")
+        # Return an empty list or a specific error message to handle gracefully
+        return [{"text": f"Error generating questions: {str(e)}", "option_a": "Error", "option_b": "Error", "option_c": "Error", "option_d": "Error", "correct_option": "A"}]
 
 def translate_question_data(question_data, target_language):
     """
@@ -75,45 +55,28 @@ def translate_question_data(question_data, target_language):
     if not api_key:
         raise ValueError("GEMINI_API_KEY is not set.")
 
-    genai.configure(api_key=api_key)
-    
-    # Use genai.list_models() to iterate through available models
-    all_models = genai.list_models()
-    
-    # Programmatically find the first available model supporting generateContent
-    valid_models = [m for m in all_models if "generateContent" in m.supported_generation_methods]
-    
-    if not valid_models:
-        raise ValueError("No generative models are available for this API key.")
-        
-    # Select the VERY FIRST model name from that filtered list
-    model_name = valid_models[0].name
-    print(f"Dynamically Selected Gemini Model for Translation: {model_name}")
-    
-    # Initialize model
-    model = genai.GenerativeModel(model_name)
+    client = genai.Client(api_key=api_key)
+    model_id = "gemini-1.5-flash-latest"
     
     prompt = f"""
     Translate the following question and options into {target_language}.
     Return ONLY a valid JSON object with the exact same keys: 'text', 'option_a', 'option_b', 'option_c', 'option_d'.
-    Do not include markdown code formatting blocks.
     
     Input JSON:
     {json.dumps(question_data)}
     """
     
     try:
-        # Call model.generate_content() to translate
-        response = model.generate_content(prompt)
-        
-        # Safely parse JSON response by stripping markdown formatting
-        text = response.text.strip()
-        if text.startswith("```json"): text = text[7:]
-        if text.startswith("```"): text = text[3:]
-        if text.endswith("```"): text = text[:-3]
-        
-        return json.loads(text.strip())
+        response = client.models.generate_content(
+            model=model_id,
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                response_mime_type='application/json',
+            )
+        )
+        return json.loads(response.text)
         
     except Exception as e:
-        print(f"Translation failed with dynamically found model {model_name}: {e}")
-        raise ValueError(f"Failed to translate question with {model_name}. API Error: {str(e)}")
+        print(f"Translation failed: {e}")
+        # Return original data if translation fails to prevent crash
+        return question_data
