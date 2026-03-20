@@ -37,11 +37,12 @@ class RegisterView(generics.CreateAPIView):
             )
         except Exception as e:
             import traceback
+            error_msg = f"ERROR DURING REGISTER: {str(e)}"
             print("--- REGISTRATION CRASH LOG ---")
-            print(f"Error Message: {str(e)}")
+            print(error_msg)
             traceback.print_exc()
             print("------------------------------")
-            return Response({"error": "Internal Server Error", "details": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({"error": error_msg, "details": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class ProfileView(generics.RetrieveUpdateAPIView):
