@@ -30,9 +30,12 @@ class ExamSessionCreateView(generics.CreateAPIView):
         topic_names = [t.name for t in session.topics.all()]
         combined_topic = " and ".join(topic_names) if topic_names else "General Knowledge"
         
+        # Extract language from frontend request
+        target_language = self.request.data.get("language", "English")
+        
         try:
-            # Generate 30 questions using Gemini
-            q_data = generate_questions(combined_topic, count=30)
+            # Generate 30 questions using Gemini with strict language
+            q_data = generate_questions(combined_topic, count=30, language=target_language)
             
             # Save questions to DB linked to this session
             for q in q_data:

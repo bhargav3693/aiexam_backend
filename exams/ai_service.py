@@ -3,7 +3,7 @@ import json
 from google import genai
 from google.genai import types
 
-def generate_questions(topic_name, count=10):
+def generate_questions(topic_name, count=10, language="English"):
     """
     Calls the Gemini API to generate multiple-choice questions for a specific topic.
     Dynamically fetches the very first available text-generation model.
@@ -18,6 +18,7 @@ def generate_questions(topic_name, count=10):
     prompt = f"""
     Generate exactly {count} multiple-choice questions about '{topic_name}'.
     The questions should be appropriate for a college-level exam.
+    Generate the multiple-choice questions strictly in the {language} language.
     Return ONLY a valid JSON array of objects.
     Each object MUST have the following keys:
     - "text": The question text.
