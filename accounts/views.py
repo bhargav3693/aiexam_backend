@@ -15,20 +15,33 @@ class RegisterView(generics.CreateAPIView):
     serializer_class = RegisterSerializer
 
     def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        user = serializer.save()
+        print("Registration Attempt Data:", request.data)
+        try:
+            serializer = self.get_serializer(data=request.data)
+            if not serializer.is_valid():
+                print("SERIALIZER ERRORS:", serializer.errors)
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                
+            user = serializer.save()
+            print("User created successfully:", user.email)
 
-        # Generate JWT tokens
-        refresh = RefreshToken.for_user(user)
-        return Response(
-            {
-                "user": UserSerializer(user).data,
-                "access": str(refresh.access_token),
-                "refresh": str(refresh),
-            },
-            status=status.HTTP_201_CREATED,
-        )
+            # Generate JWT tokens
+            refresh = RefreshToken.for_user(user)
+            return Response(
+                {
+                    "user": UserSerializer(user).data,
+                    "access": str(refresh.access_token),
+                    "refresh": str(refresh),
+                },
+                status=status.HTTP_201_CREATED,
+            )
+        except Exception as e:
+            import traceback
+            print("--- REGISTRATION CRASH LOG ---")
+            print(f"Error Message: {str(e)}")
+            traceback.print_exc()
+            print("------------------------------")
+            return Response({"error": "Internal Server Error", "details": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class ProfileView(generics.RetrieveUpdateAPIView):

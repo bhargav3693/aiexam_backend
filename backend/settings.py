@@ -123,8 +123,9 @@ SIMPLE_JWT = {
     "AUTH_HEADER_TYPES": ("Bearer",),
 }
 
-# Allow Ngrok/Localtunnel Cross-Origin Requests for external frontends
+# Allow Ngrok/Localtunnel/Vercel Cross-Origin Requests
 CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_CREDENTIALS = True
 
 from corsheaders.defaults import default_headers
 CORS_ALLOW_HEADERS = list(default_headers) + [
