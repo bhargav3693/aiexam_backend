@@ -2,6 +2,7 @@ from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.views import TokenObtainPairView
 
 from .serializers import RegisterSerializer, UserSerializer
 from django.contrib.auth import get_user_model
@@ -34,8 +35,19 @@ class RegisterView(generics.CreateAPIView):
             import traceback
             error_msg = f"ERROR DURING REGISTER: {str(e)}"
             print("--- REGISTRATION CRASH LOG ---")
-            print(error_msg)
-            traceback.print_exc()
+            print(traceback.format_exc())
+            print("------------------------------")
+            return Response({"error": error_msg, "details": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class CustomLoginView(TokenObtainPairView):
+    def post(self, request, *args, **kwargs):
+        try:
+            return super().post(request, *args, **kwargs)
+        except Exception as e:
+            import traceback
+            error_msg = f"ERROR DURING LOGIN: {str(e)}"
+            print("--- LOGIN CRASH LOG ---")
+            print(traceback.format_exc())
             print("------------------------------")
             return Response({"error": error_msg, "details": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
