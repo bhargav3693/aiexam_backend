@@ -13,7 +13,7 @@ def generate_questions(topic_name, count=10):
         raise ValueError("GEMINI_API_KEY is not set in environment.")
 
     client = genai.Client(api_key=api_key)
-    model_id = "gemini-1.5-flash"
+    model_id = "gemini-2.5-flash"
     
     prompt = f"""
     Generate exactly {count} multiple-choice questions about '{topic_name}'.
