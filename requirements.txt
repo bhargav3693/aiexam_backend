@@ -1,0 +1,9 @@
+django
+djangorestframework
+django-cors-headers
+django-rest-framework-simplejwt
+google-generativeai
+python-dotenv
+gunicorn
+whitenoise
+dj-database-url
