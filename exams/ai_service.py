@@ -1,4 +1,5 @@
 import os
+import re
 import json
 import gc
 from google import genai
@@ -6,22 +7,23 @@ from google.genai import types
 from tenacity import retry, wait_fixed, stop_after_attempt, retry_if_exception
 
 # ── Model waterfall ────────────────────────────────────────────────────────────
-# The new google-genai SDK defaults to v1beta.
-# Gemini 2.0 models  → v1beta  ✅
-# Gemini 1.5 models  → v1      ✅  (they return 404 on v1beta!)
+# v1beta → supports response_mime_type (JSON mode)   → Gemini 2.0 models
+# v1     → does NOT support response_mime_type        → Gemini 1.5 models
 #
-# Strategy: two clients, tried in order.
-# (client, model_id)
-def _build_model_list(api_key):
-    client_beta = genai.Client(api_key=api_key)                                          # v1beta – 2.0 models
-    client_v1   = genai.Client(api_key=api_key, http_options={"api_version": "v1"})     # v1     – 1.5 models
-    return [
-        (client_beta, "gemini-2.0-flash-lite"),
-        (client_beta, "gemini-2.0-flash"),
-        (client_v1,   "gemini-1.5-flash"),
-        (client_v1,   "gemini-1.5-flash-8b"),
-        (client_v1,   "gemini-1.5-pro"),
-    ]
+# Each entry: (api_version, model_id)
+MODELS = [
+    ("v1beta", "gemini-2.0-flash-lite"),
+    ("v1beta", "gemini-2.0-flash"),
+    ("v1",     "gemini-1.5-flash"),
+    ("v1",     "gemini-1.5-flash-8b"),
+    ("v1",     "gemini-1.5-pro"),
+]
+
+
+def _make_client(api_key, api_version):
+    if api_version == "v1beta":
+        return genai.Client(api_key=api_key)
+    return genai.Client(api_key=api_key, http_options={"api_version": "v1"})
 
 
 def _is_quota_error(e: Exception) -> bool:
@@ -30,33 +32,64 @@ def _is_quota_error(e: Exception) -> bool:
 
 
 def _is_daily_quota_exhausted(e: Exception) -> bool:
-    """Daily limits can't be fixed by waiting — skip to next model immediately."""
     s = str(e)
     return "PerDay" in s or "limit: 0" in s
+
+
+def _extract_json(text: str):
+    """
+    Robustly pull a JSON value out of a model response.
+    Handles markdown code fences (```json ... ```) and bare JSON.
+    """
+    text = text.strip()
+    # Strip markdown fences
+    text = re.sub(r"^```(?:json)?\s*", "", text)
+    text = re.sub(r"\s*```$", "", text)
+    text = text.strip()
+    return json.loads(text)
+
+
+def _call_model(client, model_id, prompt, api_version, json_mode=True):
+    """
+    Call generate_content with or without JSON mode depending on api_version.
+    v1beta supports response_mime_type; v1 does not.
+    """
+    if api_version == "v1beta" and json_mode:
+        response = client.models.generate_content(
+            model=model_id,
+            contents=prompt,
+            config=types.GenerateContentConfig(response_mime_type="application/json"),
+        )
+    else:
+        # v1 API: no JSON mode — ask the model plainly and parse ourselves
+        response = client.models.generate_content(
+            model=model_id,
+            contents=prompt,
+        )
+    return response
 
 
 # ──────────────────────────────────────────────────────────────────────────────
 def generate_questions(topic_name, count=10, language="English"):
     """
     Tries every model in the waterfall until one succeeds.
-    v1beta (Gemini 2.0) → v1 (Gemini 1.5) fallback chain.
+    Handles v1beta (JSON mode) and v1 (plain text + manual JSON parse).
     """
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
         raise ValueError("GEMINI_API_KEY is not set in environment.")
 
-    models = _build_model_list(api_key)
-
     prompt = f"""
 Generate exactly {count} multiple-choice questions about "{topic_name}" in {language}.
-Return ONLY a valid JSON array. Each element must have these exact keys:
-"text", "option_a", "option_b", "option_c", "option_d", "correct_answer" (A/B/C/D), "explanation".
+Return ONLY a valid JSON array with no extra text. Each element must have these exact keys:
+"text", "option_a", "option_b", "option_c", "option_d", "correct_answer" (one of A/B/C/D), "explanation".
 """
 
     last_error = ""
-    for client, model_id in models:
+    for api_version, model_id in MODELS:
+        client = _make_client(api_key, api_version)
         try:
-            print(f"Trying model: {model_id}")
+            print(f"Trying model: {model_id} (API: {api_version})")
 
             @retry(
                 wait=wait_fixed(5),
@@ -67,14 +100,10 @@ Return ONLY a valid JSON array. Each element must have these exact keys:
                 reraise=True,
             )
             def _call():
-                return client.models.generate_content(
-                    model=model_id,
-                    contents=prompt,
-                    config=types.GenerateContentConfig(response_mime_type="application/json"),
-                )
+                return _call_model(client, model_id, prompt, api_version)
 
             response = _call()
-            data = json.loads(response.text)
+            data = _extract_json(response.text)
             gc.collect()
             print(f"Success with model: {model_id}")
             return data
@@ -92,12 +121,10 @@ Return ONLY a valid JSON array. Each element must have these exact keys:
 
 # ──────────────────────────────────────────────────────────────────────────────
 def translate_question_data(question_data, target_language):
-    """Translates a question dict to target_language. Falls back to original on failure."""
+    """Translates a question dict. Falls back to original on failure."""
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
         raise ValueError("GEMINI_API_KEY is not set.")
-
-    models = _build_model_list(api_key)
 
     prompt = f"""
 Translate the following question and options into {target_language}.
@@ -107,14 +134,11 @@ Input JSON:
 {json.dumps(question_data)}
 """
 
-    for client, model_id in models:
+    for api_version, model_id in MODELS:
+        client = _make_client(api_key, api_version)
         try:
-            response = client.models.generate_content(
-                model=model_id,
-                contents=prompt,
-                config=types.GenerateContentConfig(response_mime_type="application/json"),
-            )
-            return json.loads(response.text)
+            response = _call_model(client, model_id, prompt, api_version)
+            return _extract_json(response.text)
         except Exception as e:
             print(f"Model {model_id} failed (translate_question): {str(e)[:120]}")
             continue
@@ -129,8 +153,6 @@ def translate_document(text, target_language):
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
         raise ValueError("GEMINI_API_KEY is not set.")
-
-    models = _build_model_list(api_key)
 
     was_truncated = False
     if len(text) > 2000:
@@ -148,13 +170,14 @@ Provide a bilingual line-by-line interleaved format: original line, then transla
     del text
     gc.collect()
 
-    for client, model_id in models:
+    for api_version, model_id in MODELS:
+        client = _make_client(api_key, api_version)
         try:
-            print(f"Translate-doc trying: {model_id}")
+            print(f"Translate-doc trying: {model_id} (API: {api_version})")
+            # Document translation is always plain text — never JSON mode
             response = client.models.generate_content(model=model_id, contents=prompt)
-            result_text = response.text
             gc.collect()
-            return result_text, was_truncated
+            return response.text, was_truncated
         except Exception as e:
             print(f"Model {model_id} failed (translate_doc): {str(e)[:120]}")
             continue
