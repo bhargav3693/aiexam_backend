@@ -6,24 +6,14 @@ from google import genai
 from google.genai import types
 from tenacity import retry, wait_fixed, stop_after_attempt, retry_if_exception
 
-# ── Model waterfall ────────────────────────────────────────────────────────────
-# v1beta → supports response_mime_type (JSON mode)   → Gemini 2.0 models
-# v1     → does NOT support response_mime_type        → Gemini 1.5 models
-#
-# Each entry: (api_version, model_id)
-MODELS = [
-    ("v1beta", "gemini-2.0-flash-lite"),
-    ("v1beta", "gemini-2.0-flash"),
-    ("v1",     "gemini-1.5-flash"),
-    ("v1",     "gemini-1.5-flash-8b"),
-    ("v1",     "gemini-1.5-pro"),
-]
+# ── Model Configuration ─────────────────────────────────────────────────────────
+# Hardcoded to EXACTLY one model as requested.
+# Using 'gemini-2.0-flash' strictly, as it is supported and returns 429 instead of 404.
+MODEL_ID = "gemini-2.0-flash"
 
-
-def _make_client(api_key, api_version):
-    if api_version == "v1beta":
-        return genai.Client(api_key=api_key)
-    return genai.Client(api_key=api_key, http_options={"api_version": "v1"})
+def _make_client(api_key):
+    # Let the SDK handle the version automatically
+    return genai.Client(api_key=api_key)
 
 
 def _is_quota_error(e: Exception) -> bool:
@@ -49,31 +39,18 @@ def _extract_json(text: str):
     return json.loads(text)
 
 
-def _call_model(client, model_id, prompt, api_version, json_mode=True):
-    """
-    Call generate_content with or without JSON mode depending on api_version.
-    v1beta supports response_mime_type; v1 does not.
-    """
-    if api_version == "v1beta" and json_mode:
-        response = client.models.generate_content(
-            model=model_id,
-            contents=prompt,
-            config=types.GenerateContentConfig(response_mime_type="application/json"),
-        )
-    else:
-        # v1 API: no JSON mode — ask the model plainly and parse ourselves
-        response = client.models.generate_content(
-            model=model_id,
-            contents=prompt,
-        )
-    return response
+def _call_model(client, prompt):
+    """Call generate_content with the single hardcoded model."""
+    return client.models.generate_content(
+        model=MODEL_ID,
+        contents=prompt,
+    )
 
 
 # ──────────────────────────────────────────────────────────────────────────────
 def generate_questions(topic_name, count=10, language="English"):
     """
-    Tries every model in the waterfall until one succeeds.
-    Handles v1beta (JSON mode) and v1 (plain text + manual JSON parse).
+    Generates multiple-choice questions using the assigned Gemini model.
     """
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
@@ -85,38 +62,17 @@ Return ONLY a valid JSON array with no extra text. Each element must have these 
 "text", "option_a", "option_b", "option_c", "option_d", "correct_answer" (one of A/B/C/D), "explanation".
 """
 
-    last_error = ""
-    for api_version, model_id in MODELS:
-        client = _make_client(api_key, api_version)
-        try:
-            print(f"Trying model: {model_id} (API: {api_version})")
-
-            @retry(
-                wait=wait_fixed(5),
-                stop=stop_after_attempt(2),
-                retry=retry_if_exception(
-                    lambda e: _is_quota_error(e) and not _is_daily_quota_exhausted(e)
-                ),
-                reraise=True,
-            )
-            def _call():
-                return _call_model(client, model_id, prompt, api_version)
-
-            response = _call()
-            data = _extract_json(response.text)
-            gc.collect()
-            print(f"Success with model: {model_id}")
-            return data
-
-        except Exception as e:
-            last_error = str(e)
-            print(f"Model {model_id} failed: {last_error[:150]}")
-            continue
-
-    gc.collect()
-    if "429" in last_error or "RESOURCE_EXHAUSTED" in last_error:
-        return {"error": "Daily AI limit reached. Please try again tomorrow."}
-    raise Exception(f"AI Generation failed: {last_error}")
+    client = _make_client(api_key)
+    try:
+        response = _call_model(client, prompt)
+        data = _extract_json(response.text)
+        gc.collect()
+        return data
+    except Exception as e:
+        last_error = str(e)
+        if "429" in last_error or "RESOURCE_EXHAUSTED" in last_error:
+            raise Exception("AI Limit Reached. Please wait and try again.")
+        raise Exception(f"AI Generation failed: {last_error}")
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -134,17 +90,16 @@ Input JSON:
 {json.dumps(question_data)}
 """
 
-    for api_version, model_id in MODELS:
-        client = _make_client(api_key, api_version)
-        try:
-            response = _call_model(client, model_id, prompt, api_version)
-            return _extract_json(response.text)
-        except Exception as e:
-            print(f"Model {model_id} failed (translate_question): {str(e)[:120]}")
-            continue
-
-    print("All translation models failed. Returning original.")
-    return question_data
+    client = _make_client(api_key)
+    try:
+        response = _call_model(client, prompt)
+        return _extract_json(response.text)
+    except Exception as e:
+        last_error = str(e)
+        if "429" in last_error or "RESOURCE_EXHAUSTED" in last_error:
+            raise Exception("AI Limit Reached. Please wait and try again.")
+        print(f"Translation failed: {last_error[:120]}")
+        return question_data
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -170,16 +125,13 @@ Provide a bilingual line-by-line interleaved format: original line, then transla
     del text
     gc.collect()
 
-    for api_version, model_id in MODELS:
-        client = _make_client(api_key, api_version)
-        try:
-            print(f"Translate-doc trying: {model_id} (API: {api_version})")
-            # Document translation is always plain text — never JSON mode
-            response = client.models.generate_content(model=model_id, contents=prompt)
-            gc.collect()
-            return response.text, was_truncated
-        except Exception as e:
-            print(f"Model {model_id} failed (translate_doc): {str(e)[:120]}")
-            continue
-
-    return "Daily AI limit reached. Please try again tomorrow.", was_truncated
+    client = _make_client(api_key)
+    try:
+        response = _call_model(client, prompt)
+        gc.collect()
+        return response.text, was_truncated
+    except Exception as e:
+        last_error = str(e)
+        if "429" in last_error or "RESOURCE_EXHAUSTED" in last_error:
+            raise Exception("AI Limit Reached. Please wait and try again.")
+        return "Daily AI limit reached. Please try again tomorrow.", was_truncated
