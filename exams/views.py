@@ -88,7 +88,7 @@ class ExamSessionCreateView(APIView):
             combined_topic = " and ".join([t.name for t in resolved])
             print(f"GENERATING for '{combined_topic}' in '{language}'", flush=True)
 
-            q_data = generate_questions(combined_topic, count=5, language=language)
+            q_data = generate_questions(combined_topic, count=15, language=language)
             for q in q_data:
                 Question.objects.create(
                     session=session,
@@ -183,7 +183,7 @@ def force_start_exam(request):
         combined = ' and '.join([t.name for t in resolved])
         print(f"GENERATING: '{combined}' in '{language}'", flush=True)
 
-        q_data = generate_questions(combined, count=5, language=language)
+        q_data = generate_questions(combined, count=15, language=language)
         for q in q_data:
             Question.objects.create(
                 session=session,
@@ -396,7 +396,11 @@ class TranslateDocumentView(APIView):
                 extracted_text += page.extract_text() + "\n"
             
             # Translate text
-            translated_text = translate_document(extracted_text, target_language)
+            translated_text, was_truncated = translate_document(extracted_text, target_language)
+            
+            warning = ""
+            if was_truncated:
+                warning = "Note: Due to server limits, only the first part of the document was translated."
 
             # Keep one folder like translated_files to store
             import os
@@ -413,7 +417,7 @@ class TranslateDocumentView(APIView):
             with open(filepath, "w", encoding="utf-8") as f:
                 f.write(translated_text)
 
-            return Response({"translated_text": translated_text, "filename": filename})
+            return Response({"translated_text": translated_text, "filename": filename, "warning": warning})
         except Exception as e:
             print("Translate PDF Exception:")
             traceback.print_exc()

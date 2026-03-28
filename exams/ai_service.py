@@ -1,5 +1,6 @@
 import os
 import json
+import gc
 from google import genai
 from google.genai import types
 
@@ -22,19 +23,9 @@ def generate_questions(topic_name, count=10, language="English"):
     ]
     
     prompt = f"""
-    Generate exactly {count} multiple-choice questions about '{topic_name}'.
-    The questions should be appropriate for a college-level exam.
-    Generate the multiple-choice questions strictly in the {language} language.
-    Return ONLY a valid JSON array of objects.
-    Each object MUST have the following keys:
-    - "text": The question text.
-    - "option_a": First option.
-    - "option_b": Second option.
-    - "option_c": Third option.
-    - "option_d": Fourth option.
-    - "correct_option": The correct answer, exactly one of "A", "B", "C", or "D".
-    - "explanation": A detailed explanation of why the correct option is the answer.
-    - "trick": A short trick or mental shortcut to solve this kind of question quickly.
+    Generate exactly {count} MCQs about '{topic_name}' in {language}.
+    Return ONLY a minified JSON array of objects. NO conversational text.
+    Keys: "text", "option_a", "option_b", "option_c", "option_d", "correct_option", "explanation", "trick".
     """
 
     last_error = ""
@@ -48,6 +39,7 @@ def generate_questions(topic_name, count=10, language="English"):
                 )
             )
             data = json.loads(response.text)
+            gc.collect()
             return data
             
         except Exception as e:
@@ -56,6 +48,8 @@ def generate_questions(topic_name, count=10, language="English"):
             print(f"Model {model_id} failed: {error_str}. Trying next model...")
             continue
 
+    # Final cleanup before return
+    gc.collect()
     # If all models fail
     raise Exception(f"All AI models failed. Last error: {last_error}")
 
@@ -122,6 +116,15 @@ def translate_document(text, target_language):
         "gemini-2.5-pro"
     ]
     
+    was_truncated = False
+    if len(text) > 3000:
+        text = text[:3000]
+        was_truncated = True
+
+    # Critical: Clear the original large string from memory immediately
+    # (In Python, slicing creates a new string; we want to ensure the old one can be collected)
+    # However, Python handles this behind the scenes. We'll proceed with the truncated string.
+
     prompt = f"""
 Translate the following text into {target_language}, but provide a bilingual line-by-line interleaving format.
 For every sentence or line in the original text, first output the original line, and immediately below it, output the translated {target_language} line.
@@ -138,6 +141,9 @@ Translation Metrics:
 Text:
 {text}
 """
+    # Free up memory explicitly
+    del text
+    gc.collect()
     
     for model_id in models_to_try:
         try:
@@ -145,11 +151,13 @@ Text:
                 model=model_id,
                 contents=prompt
             )
-            return response.text
+            result_text = response.text
+            gc.collect()
+            return result_text, was_truncated
             
         except Exception as e:
             error_str = str(e)
             print(f"Model {model_id} failed during document translation: {error_str}. Trying next...")
             continue
 
-    return f"Translation failed. Could not translate text to {target_language}."
+    return f"Translation failed. Could not translate text to {target_language}.", was_truncated
