@@ -135,10 +135,10 @@ CORS_ALLOW_HEADERS = list(default_headers) + [
 
 # Allow CSRF POST requests from Localtunnel and Network IP explicitly
 CSRF_TRUSTED_ORIGINS = [
-    'https://cuddly-glow.loca.lt',
+    'https://*.onrender.com',
     'https://aiexam-frontend.vercel.app',
-    'http://163.223.49.187:8000',
-    'http://163.223.49.187:5173',
+    'http://localhost:8000',
+    'http://127.0.0.1:8000',
 ]
 
 STATIC_URL = "static/"
