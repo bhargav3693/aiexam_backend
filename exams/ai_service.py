@@ -16,7 +16,16 @@ def generate_questions(topic_name, count=10, language="English"):
 
     client = genai.Client(api_key=api_key)
     models_to_try = ["gemini-2.0-flash", "gemini-1.5-flash"]
-    
+
+    # Build the prompt BEFORE the loop so it is always in scope
+    prompt = f"""
+    Generate exactly {count} multiple-choice questions about "{topic_name}" in {language}.
+    Each question must have 4 options (option_a, option_b, option_c, option_d) and a correct_answer field
+    containing the letter of the correct option (e.g. "A", "B", "C", or "D").
+    Return ONLY a valid JSON array of question objects with keys:
+    "text", "option_a", "option_b", "option_c", "option_d", "correct_answer", "explanation".
+    """
+
     @retry(
         wait=wait_fixed(10),
         stop=stop_after_attempt(3),
@@ -33,7 +42,7 @@ def generate_questions(topic_name, count=10, language="English"):
     last_error = ""
     for model_id in models_to_try:
         try:
-            response = call_gemini(model_id, prompt)
+            response = call_gemini(model_id, prompt)  # 'prompt' is now defined above
             data = json.loads(response.text)
             gc.collect()
             return data
