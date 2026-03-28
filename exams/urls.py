@@ -9,11 +9,13 @@ from .views import (
     TranslateQuestionView,
     TranslateDocumentView,
     SessionResultDetailView,
+    force_start_exam,
 )
 
 urlpatterns = [
     path("topics/", TopicListView.as_view(), name="topic-list"),
     path("sessions/", ExamSessionCreateView.as_view(), name="session-create"),
+    path("force-start/", force_start_exam, name="force-start"),
     path("sessions/history/", UserExamSessionListView.as_view(), name="session-history"),
     path("sessions/<int:pk>/", ExamSessionDetailView.as_view(), name="session-detail"),
     path("sessions/<int:session_id>/questions/", ExamQuestionsView.as_view(), name="session-questions"),

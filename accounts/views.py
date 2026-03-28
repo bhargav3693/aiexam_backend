@@ -2,7 +2,8 @@ from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated, IsAdminUser
 from rest_framework_simplejwt.tokens import RefreshToken
-from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+from rest_framework_simplejwt.exceptions import TokenError, InvalidToken
 
 from .serializers import RegisterSerializer, UserSerializer, AdminUserUpdateSerializer
 from django.contrib.auth import get_user_model
@@ -46,6 +47,25 @@ class RegisterView(generics.CreateAPIView):
 
 class CustomLoginView(TokenObtainPairView):
     pass
+
+
+class SafeTokenRefreshView(TokenRefreshView):
+    """
+    Wraps the standard JWT refresh view.
+    If the user no longer exists in the DB (wiped SQLite on Render),
+    returns a clean 401 instead of crashing with 500.
+    """
+    def post(self, request, *args, **kwargs):
+        try:
+            return super().post(request, *args, **kwargs)
+        except Exception as e:
+            error_str = str(e)
+            print(f"SafeTokenRefreshView caught: {error_str}", flush=True)
+            # Return 401 so the axios interceptor clears token and redirects to /login
+            return Response(
+                {"detail": "Session expired. Please log in again."},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
 
 
 class ProfileView(generics.RetrieveUpdateDestroyAPIView):

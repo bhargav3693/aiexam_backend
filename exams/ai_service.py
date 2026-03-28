@@ -57,7 +57,7 @@ def generate_questions(topic_name, count=10, language="English"):
             continue
 
     # If all models fail
-    return [{"text": f"Error: All AI models failed. Last error: {last_error}", "option_a": "Wait", "option_b": "Retry Later", "option_c": "Upgrade", "option_d": "Cancel", "correct_option": "A", "explanation": "API Failure", "trick": "Contact Support"}]
+    raise Exception(f"All AI models failed. Last error: {last_error}")
 
 def translate_question_data(question_data, target_language):
     """
