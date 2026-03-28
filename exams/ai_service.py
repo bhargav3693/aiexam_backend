@@ -3,6 +3,7 @@ import json
 import gc
 from google import genai
 from google.genai import types
+from tenacity import retry, wait_fixed, stop_after_attempt, retry_if_exception
 
 def generate_questions(topic_name, count=10, language="English"):
     """
@@ -14,44 +15,41 @@ def generate_questions(topic_name, count=10, language="English"):
         raise ValueError("GEMINI_API_KEY is not set in environment.")
 
     client = genai.Client(api_key=api_key)
-    models_to_try = [
-        "gemini-2.5-flash", 
-        "gemini-2.0-flash", 
-        "gemini-flash-latest", 
-        "gemini-pro-latest", 
-        "gemini-2.5-pro"
-    ]
+    models_to_try = ["gemini-2.0-flash", "gemini-1.5-flash"]
     
-    prompt = f"""
-    Generate exactly {count} MCQs about '{topic_name}' in {language}.
-    Return ONLY a minified JSON array of objects. NO conversational text.
-    Keys: "text", "option_a", "option_b", "option_c", "option_d", "correct_option", "explanation", "trick".
-    """
+    @retry(
+        wait=wait_fixed(10),
+        stop=stop_after_attempt(3),
+        retry=retry_if_exception(lambda e: "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e)),
+        reraise=True
+    )
+    def call_gemini(model_id, prompt_text):
+        return client.models.generate_content(
+            model=model_id,
+            contents=prompt_text,
+            config=types.GenerateContentConfig(response_mime_type='application/json')
+        )
 
     last_error = ""
     for model_id in models_to_try:
         try:
-            response = client.models.generate_content(
-                model=model_id,
-                contents=prompt,
-                config=types.GenerateContentConfig(
-                    response_mime_type='application/json',
-                )
-            )
+            response = call_gemini(model_id, prompt)
             data = json.loads(response.text)
             gc.collect()
             return data
-            
         except Exception as e:
-            error_str = str(e)
-            last_error = error_str
-            print(f"Model {model_id} failed: {error_str}. Trying next model...")
+            last_error = str(e)
+            print(f"Model {model_id} failed: {last_error}")
             continue
 
     # Final cleanup before return
     gc.collect()
-    # If all models fail
-    raise Exception(f"All AI models failed. Last error: {last_error}")
+    
+    # Check for quota exhaustion specifically
+    if "429" in last_error or "RESOURCE_EXHAUSTED" in last_error:
+        return {"error": "Daily AI limit reached. Please try again tomorrow."}
+        
+    raise Exception(f"AI Generation failed: {last_error}")
 
 def translate_question_data(question_data, target_language):
     """
@@ -117,47 +115,39 @@ def translate_document(text, target_language):
     ]
     
     was_truncated = False
-    if len(text) > 3000:
-        text = text[:3000]
+    if len(text) > 2000:
+        text = text[:2000]
         was_truncated = True
 
-    # Critical: Clear the original large string from memory immediately
-    # (In Python, slicing creates a new string; we want to ensure the old one can be collected)
-    # However, Python handles this behind the scenes. We'll proceed with the truncated string.
+    # Free up memory explicitly
+    gc.collect()
+
+    models_to_try = ["gemini-2.0-flash", "gemini-1.5-flash"]
+    
+    @retry(
+        wait=wait_fixed(10),
+        stop=stop_after_attempt(2),
+        retry=retry_if_exception(lambda e: "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e)),
+        reraise=True
+    )
+    def call_gemini_translate(model_id, prompt_text):
+        return client.models.generate_content(model=model_id, contents=prompt_text)
 
     prompt = f"""
-Translate the following text into {target_language}, but provide a bilingual line-by-line interleaving format.
-For every sentence or line in the original text, first output the original line, and immediately below it, output the translated {target_language} line.
-Preserve the overall document structure and formatting as much as possible.
-
-IMPORTANT: At the very end of your response (after all the translations), you MUST provide a brief summary of how accurately you were able to translate the text. Use exactly this format:
-
-==============
-Translation Metrics:
-- Estimated Accuracy: [0-100%]
-- Confidence Level: [Low/Medium/High/Very High] 
-- Reasoning: [1-2 sentences explaining if there were any idioms, highly technical terms, or missing context that affected translation]
-
-Text:
+Translate the following text into {target_language}, but provide a bilingual line-by-line interleaving format...
 {text}
 """
-    # Free up memory explicitly
     del text
     gc.collect()
     
     for model_id in models_to_try:
         try:
-            response = client.models.generate_content(
-                model=model_id,
-                contents=prompt
-            )
+            response = call_gemini_translate(model_id, prompt)
             result_text = response.text
             gc.collect()
             return result_text, was_truncated
-            
         except Exception as e:
-            error_str = str(e)
-            print(f"Model {model_id} failed during document translation: {error_str}. Trying next...")
+            print(f"Model {model_id} failed during document translation: {str(e)}")
             continue
 
-    return f"Translation failed. Could not translate text to {target_language}.", was_truncated
+    return "Daily AI limit reached. Please try again tomorrow.", was_truncated
