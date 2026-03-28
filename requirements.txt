@@ -7,3 +7,4 @@ python-dotenv
 gunicorn
 whitenoise
 dj-database-url
+PyPDF2

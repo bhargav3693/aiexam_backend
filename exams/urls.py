@@ -7,6 +7,8 @@ from .views import (
     ExamQuestionsView,
     ExamSubmitView,
     TranslateQuestionView,
+    TranslateDocumentView,
+    SessionResultDetailView,
 )
 
 urlpatterns = [
@@ -16,5 +18,7 @@ urlpatterns = [
     path("sessions/<int:pk>/", ExamSessionDetailView.as_view(), name="session-detail"),
     path("sessions/<int:session_id>/questions/", ExamQuestionsView.as_view(), name="session-questions"),
     path("sessions/<int:session_id>/submit/", ExamSubmitView.as_view(), name="session-submit"),
+    path("sessions/<int:session_id>/results/", SessionResultDetailView.as_view(), name="session-results"),
     path("translate/", TranslateQuestionView.as_view(), name="translate-question"),
+    path("translate-document/", TranslateDocumentView.as_view(), name="translate-document"),
 ]

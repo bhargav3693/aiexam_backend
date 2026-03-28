@@ -46,7 +46,9 @@ class ExamSessionCreateView(generics.CreateAPIView):
                     option_b=q.get("option_b", ""),
                     option_c=q.get("option_c", ""),
                     option_d=q.get("option_d", ""),
-                    correct_option=q.get("correct_option", "A")
+                    correct_option=q.get("correct_option", "A"),
+                    explanation=q.get("explanation", ""),
+                    trick=q.get("trick", "")
                 )
         except Exception as e:
             # Robust error handling: print detailed logs and raise 400 validation error
@@ -159,6 +161,47 @@ class ExamSubmitView(APIView):
             "detailed_results": detailed_results
         }, status=status.HTTP_200_OK)
 
+class SessionResultDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, session_id):
+        session = get_object_or_404(ExamSession, id=session_id, user=request.user)
+
+        questions = session.questions.all()
+        responses = {r.question_id: r for r in session.responses.all()}
+        
+        detailed_results = []
+        for q in questions:
+            user_response = responses.get(q.id)
+            selected_letter = user_response.selected_option if user_response and user_response.selected_option else "Unattempted"
+            is_correct = user_response.is_correct if user_response else False
+            
+            detailed_results.append({
+                "id": q.id,
+                "text": q.text,
+                "option_a": q.option_a,
+                "option_b": q.option_b,
+                "option_c": q.option_c,
+                "option_d": q.option_d,
+                "correct_option": q.correct_option,
+                "explanation": q.explanation,
+                "trick": q.trick,
+                "user_answer": selected_letter,
+                "is_correct": is_correct
+            })
+            
+        return Response({
+            "id": session.id,
+            "status": session.status,
+            "score": session.score,
+            "time_limit_minutes": session.time_limit_minutes,
+            "started_at": session.started_at,
+            "completed_at": session.completed_at,
+            "violation_count": session.violation_count,
+            "is_locked_out": session.is_locked_out,
+            "detailed_results": detailed_results
+        }, status=status.HTTP_200_OK)
+
 from rest_framework.permissions import AllowAny, IsAuthenticated
 import traceback
 
@@ -177,5 +220,51 @@ class TranslateQuestionView(APIView):
             return Response(translated)
         except Exception as e:
             print("Translate API Exception Triggered:")
+            traceback.print_exc()
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+import PyPDF2
+from rest_framework.parsers import MultiPartParser, FormParser
+from .ai_service import translate_document
+
+class TranslateDocumentView(APIView):
+    permission_classes = [AllowAny]
+    parser_classes = (MultiPartParser, FormParser)
+    
+    def post(self, request, *args, **kwargs):
+        file_obj = request.FILES.get('file')
+        target_language = request.data.get('language')
+        
+        if not file_obj or not target_language:
+            return Response({"error": "file and language required."}, status=status.HTTP_400_BAD_REQUEST)
+            
+        try:
+            # Extract text from PDF
+            pdf_reader = PyPDF2.PdfReader(file_obj)
+            extracted_text = ""
+            for page in pdf_reader.pages:
+                extracted_text += page.extract_text() + "\n"
+            
+            # Translate text
+            translated_text = translate_document(extracted_text, target_language)
+
+            # Keep one folder like translated_files to store
+            import os
+            import uuid
+            from django.conf import settings
+            
+            translated_folder = os.path.join(settings.BASE_DIR, "translated_files")
+            os.makedirs(translated_folder, exist_ok=True)
+            
+            safe_original_name = file_obj.name.replace(" ", "_")
+            filename = f"translated_{target_language}_{safe_original_name}.txt"
+            filepath = os.path.join(translated_folder, filename)
+            
+            with open(filepath, "w", encoding="utf-8") as f:
+                f.write(translated_text)
+
+            return Response({"translated_text": translated_text, "filename": filename})
+        except Exception as e:
+            print("Translate PDF Exception:")
             traceback.print_exc()
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
