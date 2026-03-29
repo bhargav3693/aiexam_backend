@@ -4,6 +4,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated, IsAdminUser
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from rest_framework_simplejwt.exceptions import TokenError, InvalidToken
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 from .serializers import RegisterSerializer, UserSerializer, AdminUserUpdateSerializer
 from django.contrib.auth import get_user_model
@@ -45,8 +46,27 @@ class RegisterView(generics.CreateAPIView):
             print("------------------------------")
             return Response({"error": error_msg, "details": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+    """Extends the default JWT response to include the user object."""
+    def validate(self, attrs):
+        data = super().validate(attrs)
+        user = self.user
+        # Embed full user profile in the login response so the frontend
+        # doesn't need a separate /profile/ fetch to determine role/redirect.
+        data['user'] = {
+            'id': user.id,
+            'email': user.email,
+            'full_name': getattr(user, 'full_name', '') or '',
+            'is_staff': user.is_staff,
+            'is_admin': user.is_staff,
+            'is_active': user.is_active,
+            'date_joined': user.date_joined.isoformat(),
+        }
+        return data
+
+
 class CustomLoginView(TokenObtainPairView):
-    pass
+    serializer_class = CustomTokenObtainPairSerializer
 
 
 class SafeTokenRefreshView(TokenRefreshView):

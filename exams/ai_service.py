@@ -15,7 +15,7 @@ load_dotenv()
 # Hardcoded to EXACTLY one model as requested.
 # Using 'gemini-2.0-flash' strictly, as it is supported and returns 429 instead of 404.
 MODEL_ID = "gemini-2.0-flash"
-USE_MOCK_DATA = True  # Set to False to re-enable live AI generation
+USE_MOCK_DATA = False  # Set to False to re-enable live AI generation
 
 def _make_client(api_key):
     # Let the SDK handle the version automatically
