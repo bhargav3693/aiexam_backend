@@ -112,13 +112,23 @@ from rest_framework.views import APIView
 class FixAdminView(APIView):
     permission_classes = [AllowAny]
     def get(self, request):
-        admin, created = User.objects.get_or_create(email="admin@test.com", defaults={"full_name": "System Admin"})
-        admin.set_password("admin_password")
+        # Primary admin account
+        admin, created = User.objects.get_or_create(
+            email="admin@examai.com",
+            defaults={"full_name": "System Admin", "username": "admin@examai.com"}
+        )
+        admin.set_password("Admin@1234")
         admin.is_staff = True
         admin.is_superuser = True
-        admin.is_active = True  # explicitly restoring just in case it was deactivated
+        admin.is_active = True
+        admin.username = "admin@examai.com"
         admin.save()
-        return Response({"status": "Admin created/updated successfully! You can now log in at /login with admin@test.com and admin_password."})
+        return Response({
+            "status": "Admin created/updated successfully!",
+            "email": "admin@examai.com",
+            "password": "Admin@1234",
+            "message": "You can now log in at /login with these credentials."
+        })
 
 class AdminUserDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = User.objects.all()
