@@ -1,0 +1,71 @@
+**Sample Question Paper**
+నమూనా ప్రశ్నపత్రం
+
+**2025-26**
+2025-26
+
+**English**
+ఇంగ్లీష్
+
+**Class -12**
+క్లాస్ -12
+
+**Time : 3 hr 15 mins**
+సమయం : 3 గం 15 నిమిషాలు
+
+**Max Marks-100**
+గరిష్ట మార్కులు-100
+
+**General Instructions :**
+సాధారణ సూచనలు :
+
+**1. The first 15 minutes are allotted to the candidates for reading the question paper.**
+1. మొదటి 15 నిమిషాలు అభ్యర్థులకు ప్రశ్నపత్రాన్ని చదవడానికి కేటాయించబడ్డాయి.
+
+**2. All questions are compulsory.**
+2. అన్ని ప్రశ్నలు తప్పనిసరి.
+
+**3. Marks are indicated against questions.**
+3. ప్రశ్నల ముందు మార్కులు సూచించబడ్డాయి.
+
+**Section-A –Reading**
+సెక్షన్-ఎ – పఠనం
+
+**Q-1 Read the following passage carefully and answer the questions that follow-**
+ప్ర-1 కింది పేరాగ్రాఫ్‌ను జాగ్రత్తగా చదివి, దాని తర్వాత వచ్చే ప్రశ్నలకు సమాధానం ఇవ్వండి-
+
+**Amar , 50, likes to think of AI as a 'clever junior' - someone who doesn't sleep, has a phenomenal head for numbers, and is open to learning.**
+అమర్, 50, AIని 'తెలివైన జూనియర్'గా భావించడానికి ఇష్టపడతాడు - అంటే నిద్రపోని, సంఖ్యలలో అద్భుతమైన నైపుణ్యం కలిగిన, మరియు నేర్చుకోవడానికి సిద్ధంగా ఉండే వ్యక్తి.
+
+**And that's precisely what he has created for himself.**
+మరియు అతను తన కోసం సృష్టించుకుంది సరిగ్గా అదే.
+
+**Over the past six months, he has trained his 'Claude-2' model to talk exactly like him.**
+గత ఆరు నెలలుగా, అతను తన 'క్లాడ్-2' మోడల్‌కు తనలాగే మాట్లాడటానికి శిక్షణ ఇచ్చాడు.
+
+**"I don't like long paragraphs, I prefer bullet points. And I like to think my tone is warm," he says, confiding that he uses AI to help draft and proofread tactical business as usual content.**
+"నాకు పొడవైన పేరాలు నచ్చవు, నేను బుల్లెట్ పాయింట్‌లను ఇష్టపడతాను. మరియు నా స్వరం వెచ్చగా ఉంటుందని నేను భావిస్తాను" అని అతను చెప్పాడు, సాధారణ వ్యాపారానికి సంబంధించిన వ్యూహాత్మక కంటెంట్‌ను రూపొందించడానికి మరియు ప్రూఫ్‌రీడ్ చేయడానికి AIని ఉపయోగిస్తున్నట్లు నమ్మకంగా వెల్లడించాడు.
+
+**As a senior executive at a multinational design and marketing firm, this saves Amar a tonne of time - time that he can spend on more creative pursuits that include designing an ad campaign or tweaking a video game.**
+ఒక బహుళజాతి డిజైన్ మరియు మార్కెటింగ్ సంస్థలో సీనియర్ ఎగ్జిక్యూటివ్‌గా, ఇది అమర్‌కు చాలా సమయాన్ని ఆదా చేస్తుంది - ఆ సమయాన్ని అతను ఒక ప్రకటనల ప్రచారాన్ని రూపొందించడం లేదా వీడియో గేమ్‌ను మెరుగుపరచడం వంటి మరింత సృజనాత్మక పనుల కోసం గడపవచ్చు.
+
+**Over the course of the last- few years, AI has disrupted almost all vocations: not just the creative ones like film, TV, design or animation, but also the more corporate-oriented fields, whether that is software engineering, accounting, marketing or healthcare.**
+గత కొద్ది సంవత్సరాలుగా, AI దాదాపు అన్ని వృత్తులను మార్చేసింది: సినిమా, టీవీ, డిజైన్ లేదా యానిమేషన్ వంటి సృజనాత్మక వాటినే కాకుండా, సాఫ్ట్‌వేర్ ఇంజనీరింగ్, అకౌంటింగ్, మార్కెటింగ్ లేదా హెల్త్‌కేర్ వంటి కార్పొరేట్-ఆధారిత రంగాలను కూడా.
+
+**Most people I contacted said that at around the same time last year, they were terrified: of being left behind, losing their jobs and becoming obsolete.**
+నేను సంప్రదించిన చాలా మంది గత సంవత్సరం ఇదే సమయానికి, తాము భయపడ్డామని చెప్పారు: వెనుకబడిపోవడం, ఉద్యోగాలు కోల్పోవడం మరియు నిరుపయోగంగా మారడం పట్ల.
+
+**But now their fear, for the most part, seems to have ebbed in favour of cautious optimism.**
+కానీ ఇప్పుడు వారి భయం, చాలా వరకు, జాగ్రత్తతో కూడిన ఆశావాదం వైపు తగ్గిపోయినట్లు కనిపిస్తుంది.
+
+**The 'creatives' are slowly realising that AI can aid, but not necessarily replace what they do, while the 'corporates' are discovering technology's ability to enhance their output in many little ways.**
+'సృజనాత్మక రంగాల వారు' తాము చేసే పనులకు AI సహాయం చేయగలదని, కానీ పూర్తిగా భర్తీ చేయదని నెమ్మదిగా గ్రహిస్తున్నారు, అయితే 'కార్పొరేట్లు' అనేక చిన్న చిన్న మార్గాల్లో తమ ఉత్పత్తిని మెరుగుపరచడానికి సాంకేతికత సామర్థ్యాన్ని కనుగొంటున్నారు.
+
+**Most have started integrating AI into their work in some capacity.**
+చాలా మంది AIని తమ పనిలో ఏదో ఒక సామర్థ్యంలో విలీనం చేయడం ప్రారంభించారు.
+
+**Some are even prepared for a radical shift in skill sets in the next few years.**
+కొంతమంది రాబోయే కొన్ని సంవత్సరాలలో నైపుణ్యాల సమితిలో సమూల మార్పుకు కూడా సిద్ధంగా ఉన్నారు.
+
+**Change is c**
+మార్పు 'సి' (అసంపూర్ణం)

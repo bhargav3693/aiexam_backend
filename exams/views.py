@@ -88,7 +88,7 @@ class ExamSessionCreateView(APIView):
             combined_topic = " and ".join([t.name for t in resolved])
             print(f"GENERATING for '{combined_topic}' in '{language}'", flush=True)
 
-            q_data = generate_questions(combined_topic, count=5, language=language)
+            q_data = generate_questions(combined_topic, count=15, language=language)
             for q in q_data:
                 Question.objects.create(
                     session=session,
@@ -183,7 +183,7 @@ def force_start_exam(request):
         combined = ' and '.join([t.name for t in resolved])
         print(f"GENERATING: '{combined}' in '{language}'", flush=True)
 
-        q_data = generate_questions(combined, count=5, language=language)
+        q_data = generate_questions(combined, count=15, language=language)
         for q in q_data:
             Question.objects.create(
                 session=session,
